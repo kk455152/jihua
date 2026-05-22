@@ -1,0 +1,46 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: jihua-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: jihua
+      POSTGRES_PASSWORD: jihua
+      POSTGRES_DB: jihua
+    volumes:
+      - jihua-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jihua -d jihua"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    ports:
+      - "5432:5432"
+
+  backend:
+    build: ./backend
+    container_name: jihua-backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+psycopg2://jihua:jihua@db:5432/jihua
+      SECRET_KEY: ${SECRET_KEY:-please-change-me-in-production}
+      CORS_ORIGINS: "*"
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+
+  frontend:
+    build: ./frontend
+    container_name: jihua-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "8080:80"
+
+volumes:
+  jihua-db-data:

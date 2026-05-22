@@ -1,0 +1,1 @@
+"""Jihua backend application package."""
