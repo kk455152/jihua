@@ -4,7 +4,7 @@ from functools import lru_cache
 
 class Settings(BaseSettings):
     APP_NAME: str = "Jihua"
-    DATABASE_URL: str = "postgresql+psycopg2://jihua:jihua@db:5432/jihua"
+    DATABASE_URL: str = "sqlite:///./jihua.db"
     SECRET_KEY: str = "change-me-in-production"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7
