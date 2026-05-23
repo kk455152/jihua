@@ -14,7 +14,7 @@ api.interceptors.response.use(
     if (err.response?.status === 401) {
       localStorage.removeItem('jihua_token')
       localStorage.removeItem('jihua_user')
-      if (!location.pathname.startsWith('/login')) location.href = '/login'
+      location.reload()
     }
     return Promise.reject(err)
   }

@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import api from './api'
 
-export const useAuth = create((set) => ({
+export const useAuth = create((set, get) => ({
   token: localStorage.getItem('jihua_token') || null,
   user: JSON.parse(localStorage.getItem('jihua_user') || 'null'),
   login: async (username, password) => {
@@ -15,6 +15,16 @@ export const useAuth = create((set) => ({
     localStorage.setItem('jihua_token', data.access_token)
     localStorage.setItem('jihua_user', JSON.stringify(data.user))
     set({ token: data.access_token, user: data.user })
+  },
+  ensureLoggedIn: async () => {
+    if (get().token) return
+    const username = 'default'
+    const password = 'default-password'
+    try {
+      await get().login(username, password)
+    } catch {
+      await get().register(username, password, null)
+    }
   },
   logout: () => {
     localStorage.removeItem('jihua_token')
