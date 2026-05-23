@@ -68,6 +68,7 @@ class Task(Base):
     description = Column(Text, default="")
     completed = Column(Boolean, default=False, index=True)
     priority = Column(SAEnum(Priority, name="priority_enum"), default=Priority.NONE)
+    start_date = Column(DateTime, nullable=True, index=True)
     due_date = Column(DateTime, nullable=True, index=True)
     reminder_at = Column(DateTime, nullable=True)
     sort_order = Column(Integer, default=0)

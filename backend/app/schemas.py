@@ -50,6 +50,7 @@ class TaskBase(BaseModel):
     title: str
     description: Optional[str] = ""
     priority: Priority = Priority.NONE
+    start_date: Optional[datetime] = None
     due_date: Optional[datetime] = None
     reminder_at: Optional[datetime] = None
     sort_order: int = 0
@@ -66,6 +67,7 @@ class TaskUpdate(BaseModel):
     description: Optional[str] = None
     completed: Optional[bool] = None
     priority: Optional[Priority] = None
+    start_date: Optional[datetime] = None
     due_date: Optional[datetime] = None
     reminder_at: Optional[datetime] = None
     sort_order: Optional[int] = None

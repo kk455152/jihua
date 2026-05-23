@@ -5,6 +5,8 @@
 html, body, #root { height: 100%; }
 body { font-family: 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif; }
 
+html.widget, body.widget, .widget #root { background: transparent !important; }
+
 @layer components {
   .btn { @apply inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors disabled:opacity-50; }
   .btn-primary { @apply btn bg-brand-500 text-white hover:bg-brand-600; }

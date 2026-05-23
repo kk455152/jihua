@@ -42,6 +42,7 @@ export default function TaskDetail() {
   }
 
   const setDueDate = (val) => save({ due_date: val ? new Date(val).toISOString() : null })
+  const setStartDate = (val) => save({ start_date: val ? new Date(val).toISOString() : null })
 
   const toggleTag = (tagId) => {
     const ids = draft.tags.map((t) => t.id)
@@ -57,6 +58,7 @@ export default function TaskDetail() {
   }
 
   const dueValue = draft.due_date ? format(new Date(draft.due_date), "yyyy-MM-dd'T'HH:mm") : ''
+  const startValue = draft.start_date ? format(new Date(draft.start_date), "yyyy-MM-dd'T'HH:mm") : ''
 
   return (
     <aside className="w-96 shrink-0 border-l border-slate-200 bg-white flex flex-col">
@@ -97,6 +99,18 @@ export default function TaskDetail() {
             )}
           />
         </div>
+
+        <Field icon={CalendarDays} label="开始时间">
+          <input
+            type="datetime-local"
+            value={startValue}
+            onChange={(e) => setStartDate(e.target.value)}
+            className="input py-1 text-sm"
+          />
+          {draft.start_date && (
+            <button onClick={() => setStartDate('')} className="text-xs text-slate-400 hover:text-red-500 mt-1">清除</button>
+          )}
+        </Field>
 
         <Field icon={CalendarDays} label="截止时间">
           <input

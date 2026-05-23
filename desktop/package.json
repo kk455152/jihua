@@ -1,0 +1,14 @@
+{
+  "name": "jihua-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "main": "main.cjs",
+  "scripts": {
+    "start": "cross-env-shell ELECTRON_RUN_AS_NODE= electron .",
+    "dev": "cross-env-shell ELECTRON_RUN_AS_NODE= electron ."
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.3",
+    "electron": "^31.0.0"
+  }
+}

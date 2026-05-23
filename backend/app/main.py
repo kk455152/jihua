@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
 from .config import settings
 from .database import Base, engine
@@ -7,6 +8,12 @@ from .routers import auth, projects, tags, tasks
 
 
 Base.metadata.create_all(bind=engine)
+
+# Lightweight online migrations for added columns (idempotent)
+with engine.begin() as conn:
+    conn.execute(
+        text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS start_date TIMESTAMP")
+    )
 
 app = FastAPI(title=settings.APP_NAME, version="0.1.0")
 
