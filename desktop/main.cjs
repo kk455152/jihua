@@ -18,6 +18,9 @@ function createWidget() {
     height: 640,
     minWidth: 280,
     minHeight: 420,
+    maxWidth: 520,
+    maxHeight: 900,
+    useContentSize: true,
     frame: false,
     transparent: true,
     backgroundColor: '#00000000',
@@ -34,6 +37,35 @@ function createWidget() {
   })
 
   widgetWin.loadURL(WIDGET_URL)
+
+  // Center-anchored resize: 拖任意边都围绕中心对称扩张/收缩
+  let resizeCenter = null
+  let suppressMove = false
+
+  widgetWin.on('will-resize', () => {
+    if (!resizeCenter) {
+      const b = widgetWin.getBounds()
+      resizeCenter = { cx: b.x + b.width / 2, cy: b.y + b.height / 2 }
+    }
+  })
+
+  widgetWin.on('resize', () => {
+    if (!resizeCenter) return
+    const b = widgetWin.getBounds()
+    const newX = Math.round(resizeCenter.cx - b.width / 2)
+    const newY = Math.round(resizeCenter.cy - b.height / 2)
+    if (newX === b.x && newY === b.y) return
+    suppressMove = true
+    widgetWin.setBounds({ x: newX, y: newY, width: b.width, height: b.height })
+    setImmediate(() => { suppressMove = false })
+  })
+
+  widgetWin.on('resized', () => { resizeCenter = null })
+
+  widgetWin.on('move', () => {
+    if (suppressMove) return
+    resizeCenter = null
+  })
 
   widgetWin.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url)

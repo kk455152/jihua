@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useStore } from '../store'
 import { format } from 'date-fns'
 import {
@@ -13,12 +13,80 @@ const PRIORITIES = [
   { v: 'none', label: '无', cls: 'text-slate-400' },
 ]
 
+const TRACKED_FIELDS = ['title', 'description', 'priority', 'project_id', 'due_date', 'start_date']
+
+// datetime-local 的值是 "YYYY-MM-DDTHH:mm"，原样补秒后作为 naive ISO 发给后端，
+// 避免 toISOString() 引入 UTC 偏移导致显示时差。
+function localInputToISO(val) {
+  if (!val) return null
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(val)) return undefined
+  return val.length === 16 ? `${val}:00` : val
+}
+
+function isoToLocalInput(iso) {
+  if (!iso) return ''
+  try {
+    return format(new Date(iso), "yyyy-MM-dd'T'HH:mm")
+  } catch {
+    return ''
+  }
+}
+
+function diffPatch(prev, next) {
+  const patch = {}
+  for (const k of TRACKED_FIELDS) {
+    if (prev[k] !== next[k]) patch[k] = next[k]
+  }
+  const prevTagIds = (prev.tags || []).map((t) => t.id).sort()
+  const nextTagIds = (next.tags || []).map((t) => t.id).sort()
+  if (prevTagIds.join(',') !== nextTagIds.join(',')) patch.tag_ids = nextTagIds
+  return patch
+}
+
 export default function TaskDetail() {
   const { activeTask, setActiveTask, updateTask, deleteTask, projects, tags, createTask, toggleTask } = useStore()
   const [draft, setDraft] = useState(null)
   const [newSub, setNewSub] = useState('')
+  const lastSavedRef = useRef(null)
+  const saveTimerRef = useRef(null)
 
-  useEffect(() => { setDraft(activeTask) }, [activeTask?.id])
+  // task 切换时重置 draft；同一 task 远端更新（如完成状态切换）时合并最新字段
+  useEffect(() => {
+    if (!activeTask) {
+      setDraft(null)
+      lastSavedRef.current = null
+      return
+    }
+    setDraft((prev) => {
+      if (!prev || prev.id !== activeTask.id) {
+        lastSavedRef.current = activeTask
+        return activeTask
+      }
+      // 同一任务：保留用户正在编辑的 tracked fields，其他字段从远端同步
+      const merged = { ...activeTask }
+      for (const k of TRACKED_FIELDS) merged[k] = prev[k]
+      merged.tags = prev.tags
+      lastSavedRef.current = activeTask
+      return merged
+    })
+  }, [activeTask])
+
+  // draft 变化触发 debounced 自动保存
+  useEffect(() => {
+    if (!draft || !lastSavedRef.current) return
+    const patch = diffPatch(lastSavedRef.current, draft)
+    if (Object.keys(patch).length === 0) return
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    saveTimerRef.current = setTimeout(async () => {
+      try {
+        await updateTask(draft.id, patch)
+        lastSavedRef.current = { ...lastSavedRef.current, ...patch }
+      } catch (err) {
+        console.error('保存失败', err)
+      }
+    }, 300)
+    return () => saveTimerRef.current && clearTimeout(saveTimerRef.current)
+  }, [draft, updateTask])
 
   if (!activeTask || !draft) {
     return (
@@ -28,26 +96,23 @@ export default function TaskDetail() {
     )
   }
 
-  const save = (patch) => {
-    setDraft({ ...draft, ...patch })
-    updateTask(draft.id, patch)
-  }
+  const update = (patch) => setDraft((d) => ({ ...d, ...patch }))
 
-  const onTitleBlur = () => {
-    if (draft.title !== activeTask.title) save({ title: draft.title })
+  const setDueDate = (val) => {
+    const iso = localInputToISO(val)
+    if (iso === undefined) return
+    update({ due_date: iso })
   }
-
-  const onDescBlur = () => {
-    if (draft.description !== activeTask.description) save({ description: draft.description })
+  const setStartDate = (val) => {
+    const iso = localInputToISO(val)
+    if (iso === undefined) return
+    update({ start_date: iso })
   }
-
-  const setDueDate = (val) => save({ due_date: val ? new Date(val).toISOString() : null })
-  const setStartDate = (val) => save({ start_date: val ? new Date(val).toISOString() : null })
 
   const toggleTag = (tagId) => {
-    const ids = draft.tags.map((t) => t.id)
-    const next = ids.includes(tagId) ? ids.filter((i) => i !== tagId) : [...ids, tagId]
-    save({ tag_ids: next })
+    const exists = draft.tags.some((t) => t.id === tagId)
+    const nextTags = exists ? draft.tags.filter((t) => t.id !== tagId) : [...draft.tags, tags.find((t) => t.id === tagId)].filter(Boolean)
+    setDraft({ ...draft, tags: nextTags })
   }
 
   const addSubtask = async (e) => {
@@ -57,8 +122,8 @@ export default function TaskDetail() {
     setNewSub('')
   }
 
-  const dueValue = draft.due_date ? format(new Date(draft.due_date), "yyyy-MM-dd'T'HH:mm") : ''
-  const startValue = draft.start_date ? format(new Date(draft.start_date), "yyyy-MM-dd'T'HH:mm") : ''
+  const dueValue = isoToLocalInput(draft.due_date)
+  const startValue = isoToLocalInput(draft.start_date)
 
   return (
     <aside className="w-96 shrink-0 border-l border-slate-200 bg-white flex flex-col">
@@ -90,8 +155,7 @@ export default function TaskDetail() {
           </button>
           <textarea
             value={draft.title}
-            onChange={(e) => setDraft({ ...draft, title: e.target.value })}
-            onBlur={onTitleBlur}
+            onChange={(e) => update({ title: e.target.value })}
             rows={2}
             className={clsx(
               'flex-1 resize-none text-base font-medium bg-transparent outline-none',
@@ -129,7 +193,7 @@ export default function TaskDetail() {
             {PRIORITIES.map((p) => (
               <button
                 key={p.v}
-                onClick={() => save({ priority: p.v })}
+                onClick={() => update({ priority: p.v })}
                 className={clsx(
                   'px-2.5 py-1 rounded-md text-xs border transition-colors',
                   draft.priority === p.v
@@ -146,7 +210,7 @@ export default function TaskDetail() {
         <Field icon={Folder} label="清单">
           <select
             value={draft.project_id || ''}
-            onChange={(e) => save({ project_id: e.target.value ? Number(e.target.value) : null })}
+            onChange={(e) => update({ project_id: e.target.value ? Number(e.target.value) : null })}
             className="input py-1 text-sm"
           >
             <option value="">未分类</option>
@@ -180,8 +244,7 @@ export default function TaskDetail() {
           <div className="text-xs text-slate-400 mb-2">备注</div>
           <textarea
             value={draft.description || ''}
-            onChange={(e) => setDraft({ ...draft, description: e.target.value })}
-            onBlur={onDescBlur}
+            onChange={(e) => update({ description: e.target.value })}
             rows={4}
             placeholder="补充任务详情…"
             className="input text-sm resize-none"

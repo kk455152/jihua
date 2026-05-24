@@ -5,8 +5,10 @@ import { format, isToday, isPast } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 import {
   Clock, BookOpen, Wrench, CheckCircle2, X, Pin, Settings as SettingsIcon, Trash2, Check,
+  ListTodo, CalendarDays,
 } from 'lucide-react'
 import clsx from 'clsx'
+import CalendarView from './CalendarView.jsx'
 
 const PRIORITY_ICON = {
   high: Clock,
@@ -17,6 +19,7 @@ const PRIORITY_ICON = {
 
 const URGENT_KEY = 'jihua_widget_urgent_hours'
 const SHOW_DONE_KEY = 'jihua_widget_show_done'
+const VIEW_KEY = 'jihua_widget_view'
 
 function fmtClock(date) {
   return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
@@ -83,6 +86,11 @@ export default function Widget() {
     const v = localStorage.getItem(SHOW_DONE_KEY)
     return v === null ? true : v === '1'
   })
+  const [view, setView] = useState(() => localStorage.getItem(VIEW_KEY) || 'list')
+
+  useEffect(() => {
+    localStorage.setItem(VIEW_KEY, view)
+  }, [view])
 
   useEffect(() => {
     document.documentElement.classList.add('widget')
@@ -199,6 +207,28 @@ export default function Widget() {
       >
         <div className="flex-1" />
         <div className="flex items-center gap-1" style={{ WebkitAppRegion: 'no-drag' }}>
+          <div className="flex items-center bg-white/5 border border-white/10 rounded-md p-0.5 mr-1">
+            <button
+              onClick={() => setView('list')}
+              className={clsx(
+                'flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] transition',
+                view === 'list' ? 'bg-white/15 text-white' : 'text-slate-400 hover:text-white'
+              )}
+              title="列表视图"
+            >
+              <ListTodo className="w-3 h-3" /> 列表
+            </button>
+            <button
+              onClick={() => setView('calendar')}
+              className={clsx(
+                'flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] transition',
+                view === 'calendar' ? 'bg-white/15 text-white' : 'text-slate-400 hover:text-white'
+              )}
+              title="日历视图"
+            >
+              <CalendarDays className="w-3 h-3" /> 日历
+            </button>
+          </div>
           <button
             onClick={togglePin}
             className={clsx(
@@ -229,9 +259,21 @@ export default function Widget() {
         </div>
       </header>
 
-      <div className="relative z-10 px-6 pt-2 pb-4 border-b border-white/5">
-        <div className="text-5xl font-extralight tracking-tight">{fmtClock(now)}</div>
-        <div className="text-slate-400 text-sm mt-1 font-light tracking-wider">{fmtDate(now)}</div>
+      <div
+        className={clsx(
+          'relative z-10 px-6 border-b border-white/5 transition-all',
+          view === 'list' ? 'pt-2 pb-4' : 'pt-1 pb-2'
+        )}
+      >
+        <div
+          className={clsx(
+            'font-extralight tracking-tight transition-all',
+            view === 'list' ? 'text-5xl' : 'text-2xl'
+          )}
+        >
+          {fmtClock(now)}
+        </div>
+        <div className="text-slate-400 text-xs mt-0.5 font-light tracking-wider">{fmtDate(now)}</div>
       </div>
 
       {showSettings && (
@@ -273,150 +315,156 @@ export default function Widget() {
         </div>
       )}
 
-      <div className="relative z-10 flex-1 overflow-y-auto p-4 flex flex-col gap-2">
-        {todayTasks.length === 0 && (
-          <div className="flex-1 flex flex-col items-center justify-center text-slate-500 text-xs gap-2">
-            <CheckCircle2 className="w-6 h-6 text-slate-600" />
-            <span>今日无安排</span>
-          </div>
-        )}
-
-        {todayTasks.map((t) => {
-          const state = computeState(t, now, urgentHours)
-          const Icon = PRIORITY_ICON[t.priority] || CheckCircle2
-          const project = projects.find((p) => p.id === t.project_id)
-          const label = timeBand(t.start_date, t.due_date)
-
-          if (state === 'done') {
-            return (
-              <div
-                key={t.id}
-                className="group flex gap-4 p-3 rounded-xl opacity-30 hover:opacity-90 transition"
-              >
-                <div className="w-12 text-right text-sm font-mono mt-0.5">{label}</div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium line-through truncate">{t.title}</div>
-                  <div className="text-xs mt-1 flex items-center gap-1 text-slate-400">
-                    <CheckCircle2 size={12} /> 已完成
-                  </div>
-                </div>
-                <button
-                  onClick={() => handleDelete(t.id)}
-                  className="self-center p-1.5 rounded-md text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition opacity-0 group-hover:opacity-100"
-                  title="删除任务"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
+      {view === 'calendar' ? (
+        <CalendarView urgentHours={urgentHours} />
+      ) : (
+        <>
+          <div className="relative z-10 flex-1 overflow-y-auto overscroll-contain p-4 flex flex-col gap-2 w-full max-w-md mx-auto">
+            {todayTasks.length === 0 && (
+              <div className="flex-1 flex flex-col items-center justify-center text-slate-500 text-xs gap-2">
+                <CheckCircle2 className="w-6 h-6 text-slate-600" />
+                <span>今日无安排</span>
               </div>
-            )
-          }
+            )}
 
-          if (state === 'active') {
-            return (
-              <div
-                key={t.id}
-                className="flex gap-4 p-3 bg-white/5 rounded-xl border border-blue-300/30 hover:border-blue-300/50 transition"
-              >
-                <div className="w-12 text-right text-sm font-mono text-blue-300 mt-0.5">{label}</div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleToggle(t.id)}
-                      className="w-3.5 h-3.5 rounded-full border border-blue-300/60 hover:bg-blue-300/30 shrink-0 flex items-center justify-center"
-                      title="完成"
-                    >
-                      <Check className="w-2.5 h-2.5 text-transparent hover:text-blue-200" />
-                    </button>
-                    <div className="text-sm font-medium text-white truncate">{t.title}</div>
-                  </div>
-                  <div className="text-xs text-blue-200/80 mt-1 flex items-center gap-1">
-                    <Icon size={12} /> 进行中{project ? ` · ${project.name}` : ''}
-                  </div>
-                </div>
-              </div>
-            )
-          }
+            {todayTasks.map((t) => {
+              const state = computeState(t, now, urgentHours)
+              const Icon = PRIORITY_ICON[t.priority] || CheckCircle2
+              const project = projects.find((p) => p.id === t.project_id)
+              const label = timeBand(t.start_date, t.due_date)
 
-          if (state === 'overdue' || state === 'urgent') {
-            return (
-              <div
-                key={t.id}
-                className="flex gap-4 p-3 rounded-xl transition-all duration-1000 ease-in-out relative bg-orange-500/5 border border-orange-500/30"
-              >
-                <div className="absolute inset-0 rounded-xl shadow-[inset_4px_0_0_0_rgba(249,115,22,0.8),0_0_30px_rgba(249,115,22,0.15)] animate-pulse pointer-events-none" />
-                <div className="w-12 text-right text-sm font-mono mt-0.5 text-orange-400 relative z-10">
-                  {label}
-                </div>
-                <div className="flex-1 min-w-0 relative z-10">
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleToggle(t.id)}
-                      className="w-3.5 h-3.5 rounded-full border border-orange-300/60 hover:bg-orange-300/30 shrink-0 flex items-center justify-center"
-                      title="完成"
-                    >
-                      <Check className="w-2.5 h-2.5 text-transparent hover:text-orange-200" />
-                    </button>
-                    <div className="text-sm font-medium text-orange-50 truncate">{t.title}</div>
-                  </div>
-                  <div className="text-xs mt-1 flex items-center gap-1 text-orange-300">
-                    <Clock size={12} className="animate-pulse" />
-                    {state === 'overdue' ? '已逾期' : `即将截止${project ? ` · ${project.name}` : ''}`}
-                  </div>
-                </div>
-              </div>
-            )
-          }
-
-          return (
-            <div
-              key={t.id}
-              className="flex gap-4 p-3 rounded-xl opacity-70 hover:opacity-100 transition"
-            >
-              <div className="w-12 text-right text-sm font-mono mt-0.5 text-slate-400">{label}</div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => handleToggle(t.id)}
-                    className="w-3.5 h-3.5 rounded-full border border-slate-500 hover:border-slate-300 shrink-0 flex items-center justify-center"
-                    title="完成"
+              if (state === 'done') {
+                return (
+                  <div
+                    key={t.id}
+                    className="group flex gap-4 p-3 rounded-xl opacity-30 hover:opacity-90 transition"
                   >
-                    <Check className="w-2.5 h-2.5 text-transparent hover:text-slate-300" />
-                  </button>
-                  <div className="text-sm font-medium text-slate-200 truncate">{t.title}</div>
-                </div>
-                <div className="text-xs text-slate-400 mt-1 flex items-center gap-1">
-                  <Icon size={12} /> {project?.name || '待办'}
-                </div>
-              </div>
-            </div>
-          )
-        })}
-      </div>
+                    <div className="w-12 text-right text-sm font-mono mt-0.5">{label}</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium line-through truncate">{t.title}</div>
+                      <div className="text-xs mt-1 flex items-center gap-1 text-slate-400">
+                        <CheckCircle2 size={12} /> 已完成
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleDelete(t.id)}
+                      className="self-center p-1.5 rounded-md text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition opacity-0 group-hover:opacity-100"
+                      title="删除任务"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )
+              }
 
-      <div
-        className="relative z-10 p-4 border-t border-white/5 min-h-[73px] flex items-center justify-center transition-all"
-        style={{ WebkitAppRegion: 'no-drag' }}
-      >
-        {adding ? (
-          <input
-            type="text"
-            autoFocus
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            onKeyDown={handleAdd}
-            onBlur={() => { if (!inputValue) setAdding(false) }}
-            placeholder="输入任务，回车确认 (Esc取消)"
-            className="w-full bg-white/5 text-white placeholder-slate-500 rounded-xl px-4 py-3 outline-none border border-white/10 focus:border-white/30 focus:bg-white/10 transition-all font-light text-sm shadow-inner"
-          />
-        ) : (
-          <button
-            onClick={() => setAdding(true)}
-            className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/15 border border-white/5 hover:border-white/10 flex items-center justify-center text-xl font-light text-slate-300 transition-all active:scale-90"
+              if (state === 'active') {
+                return (
+                  <div
+                    key={t.id}
+                    className="flex gap-4 p-3 bg-white/5 rounded-xl border border-blue-300/30 hover:border-blue-300/50 transition"
+                  >
+                    <div className="w-12 text-right text-sm font-mono text-blue-300 mt-0.5">{label}</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleToggle(t.id)}
+                          className="w-3.5 h-3.5 rounded-full border border-blue-300/60 hover:bg-blue-300/30 shrink-0 flex items-center justify-center"
+                          title="完成"
+                        >
+                          <Check className="w-2.5 h-2.5 text-transparent hover:text-blue-200" />
+                        </button>
+                        <div className="text-sm font-medium text-white truncate">{t.title}</div>
+                      </div>
+                      <div className="text-xs text-blue-200/80 mt-1 flex items-center gap-1">
+                        <Icon size={12} /> 进行中{project ? ` · ${project.name}` : ''}
+                      </div>
+                    </div>
+                  </div>
+                )
+              }
+
+              if (state === 'overdue' || state === 'urgent') {
+                return (
+                  <div
+                    key={t.id}
+                    className="flex gap-4 p-3 rounded-xl transition-all duration-1000 ease-in-out relative bg-orange-500/5 border border-orange-500/30"
+                  >
+                    <div className="absolute inset-0 rounded-xl shadow-[inset_4px_0_0_0_rgba(249,115,22,0.8),0_0_30px_rgba(249,115,22,0.15)] animate-pulse pointer-events-none" />
+                    <div className="w-12 text-right text-sm font-mono mt-0.5 text-orange-400 relative z-10">
+                      {label}
+                    </div>
+                    <div className="flex-1 min-w-0 relative z-10">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleToggle(t.id)}
+                          className="w-3.5 h-3.5 rounded-full border border-orange-300/60 hover:bg-orange-300/30 shrink-0 flex items-center justify-center"
+                          title="完成"
+                        >
+                          <Check className="w-2.5 h-2.5 text-transparent hover:text-orange-200" />
+                        </button>
+                        <div className="text-sm font-medium text-orange-50 truncate">{t.title}</div>
+                      </div>
+                      <div className="text-xs mt-1 flex items-center gap-1 text-orange-300">
+                        <Clock size={12} className="animate-pulse" />
+                        {state === 'overdue' ? '已逾期' : `即将截止${project ? ` · ${project.name}` : ''}`}
+                      </div>
+                    </div>
+                  </div>
+                )
+              }
+
+              return (
+                <div
+                  key={t.id}
+                  className="flex gap-4 p-3 rounded-xl opacity-70 hover:opacity-100 transition"
+                >
+                  <div className="w-12 text-right text-sm font-mono mt-0.5 text-slate-400">{label}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleToggle(t.id)}
+                        className="w-3.5 h-3.5 rounded-full border border-slate-500 hover:border-slate-300 shrink-0 flex items-center justify-center"
+                        title="完成"
+                      >
+                        <Check className="w-2.5 h-2.5 text-transparent hover:text-slate-300" />
+                      </button>
+                      <div className="text-sm font-medium text-slate-200 truncate">{t.title}</div>
+                    </div>
+                    <div className="text-xs text-slate-400 mt-1 flex items-center gap-1">
+                      <Icon size={12} /> {project?.name || '待办'}
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          <div
+            className="relative z-10 p-4 border-t border-white/5 min-h-[73px] flex items-center justify-center transition-all"
+            style={{ WebkitAppRegion: 'no-drag' }}
           >
-            +
-          </button>
-        )}
-      </div>
+            {adding ? (
+              <input
+                type="text"
+                autoFocus
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyDown={handleAdd}
+                onBlur={() => { if (!inputValue) setAdding(false) }}
+                placeholder="输入任务，回车确认 (Esc取消)"
+                className="w-full bg-white/5 text-white placeholder-slate-500 rounded-xl px-4 py-3 outline-none border border-white/10 focus:border-white/30 focus:bg-white/10 transition-all font-light text-sm shadow-inner"
+              />
+            ) : (
+              <button
+                onClick={() => setAdding(true)}
+                className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/15 border border-white/5 hover:border-white/10 flex items-center justify-center text-xl font-light text-slate-300 transition-all active:scale-90"
+              >
+                +
+              </button>
+            )}
+          </div>
+        </>
+      )}
     </div>
   )
 }
