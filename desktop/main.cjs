@@ -18,7 +18,6 @@ function createWidget() {
     height: 640,
     minWidth: 280,
     minHeight: 420,
-    maxWidth: 520,
     maxHeight: 900,
     useContentSize: true,
     frame: false,

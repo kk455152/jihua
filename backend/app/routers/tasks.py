@@ -64,7 +64,7 @@ def list_tasks(
         like = f"%{search}%"
         q = q.filter(or_(models.Task.title.ilike(like), models.Task.description.ilike(like)))
 
-    now = datetime.utcnow()
+    now = datetime.now()
     if view == "today":
         end = now.replace(hour=23, minute=59, second=59, microsecond=0)
         q = q.filter(
@@ -123,7 +123,7 @@ def update_task(
 
     if "completed" in data:
         if data["completed"] and not task.completed:
-            task.completed_at = datetime.utcnow()
+            task.completed_at = datetime.now()
         elif not data["completed"]:
             task.completed_at = None
 
@@ -156,6 +156,6 @@ def toggle_task(
 ):
     task = _load_task(db, task_id, user.id)
     task.completed = not task.completed
-    task.completed_at = datetime.utcnow() if task.completed else None
+    task.completed_at = datetime.now() if task.completed else None
     db.commit()
     return _load_task(db, task.id, user.id)

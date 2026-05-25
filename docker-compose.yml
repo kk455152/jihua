@@ -7,6 +7,8 @@ services:
       POSTGRES_USER: jihua
       POSTGRES_PASSWORD: jihua
       POSTGRES_DB: jihua
+      TZ: Asia/Shanghai
+      PGTZ: Asia/Shanghai
     volumes:
       - jihua-db-data:/var/lib/postgresql/data
     healthcheck:
@@ -25,6 +27,7 @@ services:
       DATABASE_URL: postgresql+psycopg2://jihua:jihua@db:5432/jihua
       SECRET_KEY: ${SECRET_KEY:-please-change-me-in-production}
       CORS_ORIGINS: "*"
+      TZ: Asia/Shanghai
     depends_on:
       db:
         condition: service_healthy

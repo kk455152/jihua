@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import clsx from 'clsx'
 import CalendarView from './CalendarView.jsx'
+import CosmicBackground from '../components/CosmicBackground.jsx'
 
 const PRIORITY_ICON = {
   high: Clock,
@@ -195,14 +196,13 @@ export default function Widget() {
   }
 
   return (
-    <div className="h-screen w-full bg-gradient-to-br from-slate-800 via-slate-900 to-black text-white font-sans relative overflow-hidden flex flex-col rounded-3xl">
-      <div className="absolute top-0 left-0 w-72 h-72 bg-blue-500/20 rounded-full blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-0 right-0 w-80 h-80 bg-purple-500/10 rounded-full blur-[140px] pointer-events-none" />
+    <div className="h-screen w-full min-w-0 text-white font-sans relative overflow-hidden flex flex-col rounded-3xl">
+      <CosmicBackground />
 
       <div className="absolute inset-0 rounded-3xl border border-white/10 pointer-events-none" />
 
       <header
-        className="relative z-10 flex items-center justify-end px-3 pt-2 gap-1"
+        className="relative z-10 flex items-center justify-end px-3 pt-2 gap-1 min-w-0"
         style={{ WebkitAppRegion: 'drag' }}
       >
         <div className="flex-1" />
@@ -261,7 +261,7 @@ export default function Widget() {
 
       <div
         className={clsx(
-          'relative z-10 px-6 border-b border-white/5 transition-all',
+          'relative z-10 px-4 sm:px-6 border-b border-white/5 transition-all',
           view === 'list' ? 'pt-2 pb-4' : 'pt-1 pb-2'
         )}
       >
@@ -316,10 +316,14 @@ export default function Widget() {
       )}
 
       {view === 'calendar' ? (
-        <CalendarView urgentHours={urgentHours} />
+        <CalendarView
+          urgentHours={urgentHours}
+          list={list}
+          setList={setList}
+        />
       ) : (
         <>
-          <div className="relative z-10 flex-1 overflow-y-auto overscroll-contain p-4 flex flex-col gap-2 w-full max-w-md mx-auto">
+          <div className="relative z-10 flex-1 overflow-y-auto overscroll-contain px-3 sm:px-4 py-4 flex flex-col gap-2 w-full min-w-0">
             {todayTasks.length === 0 && (
               <div className="flex-1 flex flex-col items-center justify-center text-slate-500 text-xs gap-2">
                 <CheckCircle2 className="w-6 h-6 text-slate-600" />
@@ -361,21 +365,25 @@ export default function Widget() {
                 return (
                   <div
                     key={t.id}
-                    className="flex gap-4 p-3 bg-white/5 rounded-xl border border-blue-300/30 hover:border-blue-300/50 transition"
+                    className="flex gap-4 p-3 rounded-xl border border-sky-300/40 hover:border-sky-300/70 transition relative overflow-hidden"
+                    style={{
+                      background: 'radial-gradient(ellipse at 20% 50%, rgba(96,165,250,0.25), rgba(96,165,250,0.06) 70%)',
+                      boxShadow: '0 0 14px rgba(96,165,250,0.25), inset 0 0 12px rgba(199,210,254,0.08)',
+                    }}
                   >
-                    <div className="w-12 text-right text-sm font-mono text-blue-300 mt-0.5">{label}</div>
+                    <div className="w-12 text-right text-sm font-mono text-sky-200 mt-0.5">{label}</div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => handleToggle(t.id)}
-                          className="w-3.5 h-3.5 rounded-full border border-blue-300/60 hover:bg-blue-300/30 shrink-0 flex items-center justify-center"
+                          className="w-3.5 h-3.5 rounded-full border border-sky-300/60 hover:bg-sky-300/30 shrink-0 flex items-center justify-center"
                           title="完成"
                         >
-                          <Check className="w-2.5 h-2.5 text-transparent hover:text-blue-200" />
+                          <Check className="w-2.5 h-2.5 text-transparent hover:text-sky-200" />
                         </button>
-                        <div className="text-sm font-medium text-white truncate">{t.title}</div>
+                        <div className="text-sm font-medium text-white truncate celestial-text">{t.title}</div>
                       </div>
-                      <div className="text-xs text-blue-200/80 mt-1 flex items-center gap-1">
+                      <div className="text-xs text-sky-200/90 mt-1 flex items-center gap-1">
                         <Icon size={12} /> 进行中{project ? ` · ${project.name}` : ''}
                       </div>
                     </div>
@@ -387,10 +395,14 @@ export default function Widget() {
                 return (
                   <div
                     key={t.id}
-                    className="flex gap-4 p-3 rounded-xl transition-all duration-1000 ease-in-out relative bg-orange-500/5 border border-orange-500/30"
+                    className="flex gap-4 p-3 rounded-xl transition-all duration-1000 ease-in-out relative overflow-hidden border border-rose-400/40"
+                    style={{
+                      background: 'radial-gradient(ellipse at 25% 50%, rgba(251,113,133,0.32), rgba(251,113,133,0.08) 70%)',
+                      boxShadow: '0 0 18px rgba(251,113,133,0.35), inset 0 0 14px rgba(255,200,200,0.12)',
+                    }}
                   >
-                    <div className="absolute inset-0 rounded-xl shadow-[inset_4px_0_0_0_rgba(249,115,22,0.8),0_0_30px_rgba(249,115,22,0.15)] animate-pulse pointer-events-none" />
-                    <div className="w-12 text-right text-sm font-mono mt-0.5 text-orange-400 relative z-10">
+                    <div className="absolute inset-0 rounded-xl shadow-[inset_4px_0_0_0_rgba(251,113,133,0.85)] animate-pulse pointer-events-none" />
+                    <div className="w-12 text-right text-sm font-mono mt-0.5 text-rose-300 relative z-10">
                       {label}
                     </div>
                     <div className="flex-1 min-w-0 relative z-10">
