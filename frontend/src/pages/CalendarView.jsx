@@ -7,8 +7,41 @@ import {
   startOfDay, endOfDay,
 } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, RotateCcw, Trash2, Check, Plus, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, RotateCcw, Trash2, Check, Plus, X, Flag, Folder, CalendarDays } from 'lucide-react'
 import clsx from 'clsx'
+
+const PRIORITIES = [
+  { v: 'high', label: '高', cls: 'text-rose-300' },
+  { v: 'medium', label: '中', cls: 'text-amber-300' },
+  { v: 'low', label: '低', cls: 'text-sky-300' },
+  { v: 'none', label: '无', cls: 'text-slate-400' },
+]
+
+const TRACKED_FIELDS = ['title', 'description', 'priority', 'project_id', 'due_date', 'start_date']
+
+function localInputToISO(val) {
+  if (val === '' || val === null) return null
+  if (val === undefined) return undefined
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(val)) return undefined
+  return val.length === 16 ? `${val}:00` : val
+}
+
+function isoToLocalInput(iso) {
+  if (!iso) return ''
+  try {
+    return format(new Date(iso), "yyyy-MM-dd'T'HH:mm")
+  } catch {
+    return ''
+  }
+}
+
+function diffPatch(prev, next) {
+  const patch = {}
+  for (const k of TRACKED_FIELDS) {
+    if (prev[k] !== next[k]) patch[k] = next[k]
+  }
+  return patch
+}
 
 const WEEK_LABELS = ['一', '二', '三', '四', '五', '六', '日']
 const HOUR_HEIGHT = 44
@@ -203,6 +236,7 @@ export default function CalendarView({ urgentHours, list, setList }) {
 
   // 通用 mousedown：根据 mode = move | resize-top | resize-bottom 处理
   const startInteraction = (e, task, mode) => {
+    if (e.button !== 0) return // 仅左键触发拖拽
     e.stopPropagation()
     e.preventDefault()
 
@@ -275,7 +309,6 @@ export default function CalendarView({ urgentHours, list, setList }) {
       if (rafId) cancelAnimationFrame(rafId)
       setDrag(null)
       if (!didMove || !preview) {
-        setSelectedTask(task)
         return
       }
       const patch = {}
@@ -393,13 +426,13 @@ export default function CalendarView({ urgentHours, list, setList }) {
                 return (
                   <div
                     key={t.id}
-                    onClick={() => setSelectedTask(t)}
+                    onContextMenu={(e) => { e.preventDefault(); setSelectedTask(t) }}
                     className={clsx(
-                      'truncate text-[9px] leading-tight px-1 py-0.5 rounded cursor-pointer',
+                      'truncate text-[9px] leading-tight px-1 py-0.5 rounded',
                       sty.cls, sty.text,
                       t.completed && 'line-through opacity-60'
                     )}
-                    title={t.title}
+                    title={`${t.title}（右键编辑）`}
                   >
                     {t.title}
                   </div>
@@ -541,6 +574,7 @@ export default function CalendarView({ urgentHours, list, setList }) {
                   return (
                     <div
                       key={`${task.id}-${day.toISOString()}`}
+                      onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setSelectedTask(task) }}
                       className={clsx(
                         'absolute rounded overflow-hidden group',
                         sty.cls, sty.text,
@@ -557,7 +591,7 @@ export default function CalendarView({ urgentHours, list, setList }) {
                         transform: liveTransform,
                         willChange: isInteracting ? 'transform, top, height' : undefined,
                       }}
-                      title={`${task.title}\n${fmtRange(displayStart, displayEnd)}`}
+                      title={`${task.title}\n${fmtRange(displayStart, displayEnd)}（右键编辑）`}
                     >
                       {/* 顶部 resize 句柄 */}
                       <div
@@ -627,7 +661,10 @@ export default function CalendarView({ urgentHours, list, setList }) {
       {selectedTask && (
         <TaskPopover
           task={selectedTask}
-          project={projects.find((p) => p.id === selectedTask.project_id)}
+          projects={projects}
+          updateTask={updateTask}
+          setList={setList}
+          setSelectedTask={setSelectedTask}
           onClose={() => setSelectedTask(null)}
           onToggle={() => handleToggle(selectedTask.id)}
           onDelete={() => handleDelete(selectedTask.id)}
@@ -773,14 +810,63 @@ function AddTaskDialog({ defaultDay, projects, onClose, onCreate }) {
   )
 }
 
-function TaskPopover({ task, project, onClose, onToggle, onDelete }) {
-  const start = task.start_date ? new Date(task.start_date) : null
-  const due = task.due_date ? new Date(task.due_date) : null
-  const sty = PRIORITY_BLOCK[task.priority] || PRIORITY_BLOCK.none
+function TaskPopover({ task, projects, updateTask, setList, setSelectedTask, onClose, onToggle, onDelete }) {
+  const [draft, setDraft] = useState(task)
+  const lastSavedRef = useRef(task)
+  const saveTimerRef = useRef(null)
+
+  // task 切换或远端更新时合并最新字段，但保留正在编辑的 tracked fields
+  useEffect(() => {
+    setDraft((prev) => {
+      if (!prev || prev.id !== task.id) {
+        lastSavedRef.current = task
+        return task
+      }
+      const merged = { ...task }
+      for (const k of TRACKED_FIELDS) merged[k] = prev[k]
+      lastSavedRef.current = task
+      return merged
+    })
+  }, [task])
+
+  // debounced 自动保存
+  useEffect(() => {
+    if (!draft || !lastSavedRef.current) return
+    const patch = diffPatch(lastSavedRef.current, draft)
+    if (Object.keys(patch).length === 0) return
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    saveTimerRef.current = setTimeout(async () => {
+      try {
+        await updateTask(draft.id, patch)
+        lastSavedRef.current = { ...lastSavedRef.current, ...patch }
+        setList((prev) => prev.map((t) => (t.id === draft.id ? { ...t, ...patch } : t)))
+        setSelectedTask((s) => (s && s.id === draft.id ? { ...s, ...patch } : s))
+      } catch (err) {
+        console.error('保存失败', err)
+      }
+    }, 400)
+    return () => saveTimerRef.current && clearTimeout(saveTimerRef.current)
+  }, [draft, updateTask, setList, setSelectedTask])
+
+  const update = (patch) => setDraft((d) => ({ ...d, ...patch }))
+
+  const setStartDate = (val) => {
+    const iso = localInputToISO(val)
+    if (iso === undefined) return
+    update({ start_date: iso })
+  }
+  const setDueDate = (val) => {
+    const iso = localInputToISO(val)
+    if (iso === undefined) return
+    update({ due_date: iso })
+  }
+
+  const sty = PRIORITY_BLOCK[draft.priority] || PRIORITY_BLOCK.none
+  const project = projects.find((p) => p.id === draft.project_id)
 
   return (
     <div
-      className="absolute left-2 right-2 bottom-2 z-30 rounded-xl bg-slate-900/95 backdrop-blur-xl border border-white/10 shadow-2xl p-3 sm:left-auto sm:w-[420px] sm:max-w-[calc(100%-1rem)]"
+      className="absolute left-2 right-2 bottom-2 z-30 rounded-xl bg-slate-900/95 backdrop-blur-xl border border-white/10 shadow-2xl p-3 sm:left-auto sm:w-[360px] sm:max-w-[calc(100%-1rem)] max-h-[80%] overflow-y-auto"
       onClick={(e) => e.stopPropagation()}
     >
       <div className="flex items-start gap-2">
@@ -788,40 +874,124 @@ function TaskPopover({ task, project, onClose, onToggle, onDelete }) {
           onClick={onToggle}
           className={clsx(
             'mt-0.5 w-4 h-4 rounded-full border shrink-0 flex items-center justify-center',
-            task.completed ? 'bg-slate-400/40 border-slate-300/40' : 'border-slate-400/60 hover:border-white'
+            draft.completed ? 'bg-slate-400/40 border-slate-300/40' : 'border-slate-400/60 hover:border-white'
           )}
+          title={draft.completed ? '取消完成' : '标记完成'}
         >
-          {task.completed && <Check className="w-2.5 h-2.5 text-white" />}
+          {draft.completed && <Check className="w-2.5 h-2.5 text-white" />}
         </button>
-        <div className="flex-1 min-w-0">
-          <div className={clsx('text-sm font-medium truncate', task.completed && 'line-through text-slate-400')}>
-            {task.title}
-          </div>
-          <div className="text-[11px] text-slate-400 mt-1 flex items-center gap-1.5 flex-wrap">
-            <span className={clsx('w-1.5 h-1.5 rounded-full', sty.dot)} />
-            {start && due ? fmtRange(start, due) : due ? format(due, 'M月d日 HH:mm') : start ? format(start, 'M月d日 HH:mm') + ' 起' : '无时间'}
-            {project && (
-              <span className="inline-flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full" style={{ background: project.color }} />
-                {project.name}
-              </span>
-            )}
-          </div>
-          {task.description && (
-            <div className="text-[11px] text-slate-300 mt-2 whitespace-pre-wrap line-clamp-3">{task.description}</div>
+        <textarea
+          value={draft.title}
+          onChange={(e) => update({ title: e.target.value })}
+          rows={1}
+          className={clsx(
+            'flex-1 resize-none bg-transparent outline-none text-sm font-medium text-white placeholder-slate-500',
+            draft.completed && 'line-through text-slate-400'
           )}
-        </div>
-        <button onClick={onClose} className="text-slate-500 hover:text-white text-xs px-1">
+          placeholder="任务标题"
+        />
+        <button onClick={onClose} className="text-slate-500 hover:text-white shrink-0">
           <X className="w-3.5 h-3.5" />
         </button>
       </div>
-      {task.completed && (
-        <div className="mt-2 flex justify-end">
-          <button onClick={onDelete} className="text-[11px] text-slate-400 hover:text-red-400 inline-flex items-center gap-1">
-            <Trash2 className="w-3 h-3" /> 删除
-          </button>
+
+      <div className="text-[11px] text-slate-400 mt-2 flex items-center gap-1.5 flex-wrap">
+        <span className={clsx('w-1.5 h-1.5 rounded-full', sty.dot)} />
+        {project && (
+          <span className="inline-flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full" style={{ background: project.color }} />
+            {project.name}
+          </span>
+        )}
+      </div>
+
+      <div className="mt-3 space-y-2.5">
+        <PopField icon={CalendarDays} label="开始时间">
+          <div className="flex items-center gap-1.5">
+            <input
+              type="datetime-local"
+              value={isoToLocalInput(draft.start_date)}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="flex-1 bg-white/5 text-white rounded px-1.5 py-1 outline-none border border-white/10 focus:border-white/30 text-[11px]"
+            />
+            {draft.start_date && (
+              <button onClick={() => update({ start_date: null })} className="text-[10px] text-slate-500 hover:text-rose-300 px-1">清除</button>
+            )}
+          </div>
+        </PopField>
+
+        <PopField icon={CalendarDays} label="截止时间">
+          <div className="flex items-center gap-1.5">
+            <input
+              type="datetime-local"
+              value={isoToLocalInput(draft.due_date)}
+              onChange={(e) => setDueDate(e.target.value)}
+              className="flex-1 bg-white/5 text-white rounded px-1.5 py-1 outline-none border border-white/10 focus:border-white/30 text-[11px]"
+            />
+            {draft.due_date && (
+              <button onClick={() => update({ due_date: null })} className="text-[10px] text-slate-500 hover:text-rose-300 px-1">清除</button>
+            )}
+          </div>
+        </PopField>
+
+        <PopField icon={Flag} label="优先级">
+          <div className="flex gap-1">
+            {PRIORITIES.map((p) => (
+              <button
+                key={p.v}
+                onClick={() => update({ priority: p.v })}
+                className={clsx(
+                  'px-2 py-0.5 rounded text-[11px] border transition-colors',
+                  draft.priority === p.v
+                    ? 'bg-white/10 border-white/30 text-white'
+                    : 'border-white/10 text-slate-300 hover:bg-white/5'
+                )}
+              >
+                <Flag className={clsx('w-3 h-3 inline mr-0.5', p.cls)} /> {p.label}
+              </button>
+            ))}
+          </div>
+        </PopField>
+
+        <PopField icon={Folder} label="清单">
+          <select
+            value={draft.project_id || ''}
+            onChange={(e) => update({ project_id: e.target.value ? Number(e.target.value) : null })}
+            className="w-full bg-white/5 text-white rounded px-1.5 py-1 outline-none border border-white/10 focus:border-white/30 text-[11px]"
+          >
+            <option value="">未分类</option>
+            {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+        </PopField>
+
+        <div>
+          <div className="text-[10px] text-slate-400 mb-1">备注</div>
+          <textarea
+            value={draft.description || ''}
+            onChange={(e) => update({ description: e.target.value })}
+            rows={3}
+            placeholder="补充任务详情…"
+            className="w-full bg-white/5 text-white placeholder-slate-500 rounded px-1.5 py-1 outline-none border border-white/10 focus:border-white/30 text-[11px] resize-none"
+          />
         </div>
-      )}
+      </div>
+
+      <div className="mt-3 pt-2 border-t border-white/5 flex justify-end">
+        <button onClick={onDelete} className="text-[11px] text-slate-400 hover:text-red-400 inline-flex items-center gap-1">
+          <Trash2 className="w-3 h-3" /> 删除
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function PopField({ icon: Icon, label, children }) {
+  return (
+    <div>
+      <div className="flex items-center gap-1 text-[10px] text-slate-400 mb-1">
+        <Icon className="w-3 h-3" /> {label}
+      </div>
+      {children}
     </div>
   )
 }
