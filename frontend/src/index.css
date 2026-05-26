@@ -41,7 +41,7 @@ html.widget, body.widget, .widget #root { background: transparent !important; }
     /* Deep purple haze, upper right */
     radial-gradient(ellipse 60% 45% at 72% 18%, var(--neb-deep-purple) 0%, transparent 70%),
     /* Galactic core warmth, off-screen lower-right */
-    radial-gradient(circle 65% at 88% 108%, var(--core-warmth) 0%, transparent 55%),
+    radial-gradient(ellipse 70% 60% at 88% 108%, var(--core-warmth) 0%, transparent 55%),
     /* Deep void gradient base */
     radial-gradient(ellipse at 50% 50%, var(--cosmic-bg-3) 0%, var(--cosmic-bg-2) 38%, var(--cosmic-bg-1) 80%);
   background-attachment: local;
