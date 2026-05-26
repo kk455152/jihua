@@ -1,8 +1,8 @@
 const { app, BrowserWindow, ipcMain, shell, Menu, Tray, nativeImage } = require('electron')
 const path = require('path')
 
-const WIDGET_URL = process.env.JIHUA_WIDGET_URL || 'http://localhost:8080/widget'
-const MAIN_URL = process.env.JIHUA_MAIN_URL || 'http://localhost:8080/'
+const WIDGET_URL = process.env.JIHUA_WIDGET_URL || 'http://124.222.99.202/widget'
+const MAIN_URL = process.env.JIHUA_MAIN_URL || 'http://124.222.99.202/'
 
 let widgetWin = null
 let tray = null
@@ -105,15 +105,30 @@ ipcMain.handle('widget:openMain', () => {
   shell.openExternal(MAIN_URL)
 })
 
-app.whenReady().then(() => {
-  createWidget()
-  try { createTray() } catch (_) {}
-
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWidget()
+const gotLock = app.requestSingleInstanceLock()
+if (!gotLock) {
+  app.quit()
+} else {
+  app.on('second-instance', () => {
+    if (widgetWin) {
+      if (widgetWin.isMinimized()) widgetWin.restore()
+      widgetWin.show()
+      widgetWin.focus()
+    } else {
+      createWidget()
+    }
   })
-})
 
-app.on('window-all-closed', () => {
-  // Keep app alive in tray; user must quit explicitly
-})
+  app.whenReady().then(() => {
+    createWidget()
+    try { createTray() } catch (_) {}
+
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) createWidget()
+    })
+  })
+
+  app.on('window-all-closed', () => {
+    // Keep app alive in tray; user must quit explicitly
+  })
+}

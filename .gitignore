@@ -23,3 +23,13 @@ build/
 
 # Docker
 *.log
+
+# Secrets / keys
+*.pem
+openclaw.pem
+wai.pem
+
+# Production / sensitive
+.env.prod
+jihua-dump.sql
+docker-compose.prod.yml
