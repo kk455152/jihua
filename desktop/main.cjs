@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell, Menu, Tray, nativeImage } = require('electron')
+const { app, BrowserWindow, ipcMain, shell, Menu, Tray, nativeImage, screen } = require('electron')
 const path = require('path')
 
 const WIDGET_URL = process.env.JIHUA_WIDGET_URL || 'http://124.222.99.202/widget'
@@ -6,6 +6,9 @@ const MAIN_URL = process.env.JIHUA_MAIN_URL || 'http://124.222.99.202/'
 
 let widgetWin = null
 let tray = null
+let prevBounds = null
+let prevAlwaysOnTop = false
+let isSimulatedFullScreen = false
 
 function createWidget() {
   if (widgetWin) {
@@ -71,15 +74,10 @@ function createWidget() {
     return { action: 'deny' }
   })
 
-  widgetWin.on('enter-full-screen', () => {
-    widgetWin.webContents.send('widget:fullScreenChanged', true)
-  })
-  widgetWin.on('leave-full-screen', () => {
-    widgetWin.webContents.send('widget:fullScreenChanged', false)
-  })
-
   widgetWin.on('closed', () => {
     widgetWin = null
+    isSimulatedFullScreen = false
+    prevBounds = null
   })
 
   return widgetWin
@@ -114,13 +112,28 @@ ipcMain.handle('widget:openMain', () => {
 
 ipcMain.handle('widget:toggleFullScreen', () => {
   if (!widgetWin) return false
-  const next = !widgetWin.isFullScreen()
-  widgetWin.setFullScreen(next)
+  const next = !isSimulatedFullScreen
+  if (next) {
+    prevBounds = widgetWin.getBounds()
+    prevAlwaysOnTop = widgetWin.isAlwaysOnTop()
+    const display = screen.getDisplayMatching(prevBounds)
+    const area = display.workArea
+    widgetWin.setResizable(false)
+    widgetWin.setBounds(area)
+    widgetWin.setAlwaysOnTop(true, 'floating')
+    isSimulatedFullScreen = true
+  } else {
+    widgetWin.setAlwaysOnTop(prevAlwaysOnTop, 'floating')
+    if (prevBounds) widgetWin.setBounds(prevBounds)
+    widgetWin.setResizable(true)
+    isSimulatedFullScreen = false
+  }
+  widgetWin.webContents.send('widget:fullScreenChanged', next)
   return next
 })
 
 ipcMain.handle('widget:isFullScreen', () => {
-  return widgetWin ? widgetWin.isFullScreen() : false
+  return isSimulatedFullScreen
 })
 
 const gotLock = app.requestSingleInstanceLock()
