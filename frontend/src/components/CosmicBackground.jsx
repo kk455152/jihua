@@ -1,37 +1,60 @@
 import { useEffect, useMemo, useRef } from 'react'
 
-// 30 颗完全静态的背景星点 + 6 颗慢速闪烁的"主英雄"星点
-function makeStaticStars(count, sizeRange) {
+const STAR_CLASSES = ['star-white', 'star-white', 'star-white', 'star-blue', 'star-yellow', 'star-red']
+
+function makeFieldStars(count, sizeRange) {
   const arr = []
   for (let i = 0; i < count; i++) {
     arr.push({
-      id: `s-${i}`,
+      id: `f-${i}`,
       x: Math.random() * 100,
       y: Math.random() * 100,
       size: sizeRange[0] + Math.random() * (sizeRange[1] - sizeRange[0]),
+      cls: STAR_CLASSES[Math.floor(Math.random() * STAR_CLASSES.length)],
+      opacity: 0.45 + Math.random() * 0.45,
     })
   }
   return arr
 }
+
+function makeMicroStars(count) {
+  const arr = []
+  for (let i = 0; i < count; i++) {
+    arr.push({
+      id: `m-${i}`,
+      x: Math.random() * 100,
+      y: Math.random() * 100,
+    })
+  }
+  return arr
+}
+
 function makeHeroStars(count) {
   const arr = []
   for (let i = 0; i < count; i++) {
     arr.push({
       id: `h-${i}`,
-      x: 8 + Math.random() * 84,
-      y: 8 + Math.random() * 84,
-      size: 2.4 + Math.random() * 1.2,
+      x: 12 + Math.random() * 76,
+      y: 12 + Math.random() * 76,
+      size: 2.4 + Math.random() * 1.4,
+      cls: STAR_CLASSES[Math.floor(Math.random() * STAR_CLASSES.length)],
       delay: Math.random() * 6,
     })
   }
   return arr
 }
 
-export default function CosmicBackground() {
-  const staticStars = useMemo(() => makeStaticStars(30, [0.8, 1.6]), [])
-  const heroStars = useMemo(() => makeHeroStars(6), [])
+const FLARE_STARS = [
+  { id: 'lf-0', x: 22, y: 24, color: 'lens-flare-blue', size: 90, delay: 0 },
+  { id: 'lf-1', x: 74, y: 64, color: '', size: 70, delay: 2.5 },
+  { id: 'lf-2', x: 58, y: 16, color: 'lens-flare-red', size: 60, delay: 5 },
+]
 
-  // 鼠标跟随光晕（保留：低成本、用户决定保留）
+export default function CosmicBackground() {
+  const fieldStars = useMemo(() => makeFieldStars(40, [0.7, 1.6]), [])
+  const microStars = useMemo(() => makeMicroStars(80), [])
+  const heroStars = useMemo(() => makeHeroStars(7), [])
+
   const haloRef = useRef(null)
   useEffect(() => {
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
@@ -57,35 +80,37 @@ export default function CosmicBackground() {
 
   return (
     <div className="absolute inset-0 overflow-hidden rounded-3xl pointer-events-none" aria-hidden="true">
-      {/* 基础宇宙渐变背景（静态） */}
+      {/* Deep void + galactic core warmth + emission-line nebulae */}
       <div className="absolute inset-0 cosmic-bg" />
 
-      {/* 漂浮星云 - 保留，因为用户选择不调整 */}
+      {/* Drifting colored gas veils (H-alpha + O III) */}
       <div className="absolute inset-0 nebula-drift-a" />
       <div className="absolute inset-0 nebula-drift-b" />
 
-      {/* 静态星点 — 完全无动画，纯渲染开销 */}
+      {/* Distant galaxy micro-stars (sub-pixel sand) */}
       <div className="absolute inset-0">
-        {staticStars.map((s) => (
+        {microStars.map((s) => (
           <span
             key={s.id}
             style={{
               position: 'absolute',
               left: `${s.x}%`,
               top: `${s.y}%`,
-              width: s.size,
-              height: s.size,
+              width: 1,
+              height: 1,
               borderRadius: '999px',
-              background: '#e0e7ff',
-              opacity: 0.55,
+              background: 'rgba(220, 230, 255, 0.55)',
             }}
           />
         ))}
-        {/* 英雄星：6 颗主要星点慢闪，节奏 6s */}
-        {heroStars.map((s) => (
+      </div>
+
+      {/* Field stars with chromatic glow per stellar class */}
+      <div className="absolute inset-0">
+        {fieldStars.map((s) => (
           <span
             key={s.id}
-            className="hero-twinkle"
+            className={s.cls}
             style={{
               position: 'absolute',
               left: `${s.x}%`,
@@ -93,15 +118,47 @@ export default function CosmicBackground() {
               width: s.size,
               height: s.size,
               borderRadius: '999px',
-              background: '#ffffff',
-              boxShadow: '0 0 3px #ffffff',
+              opacity: s.opacity,
+            }}
+          />
+        ))}
+        {/* Hero stars: 7 brightest twinkle slowly */}
+        {heroStars.map((s) => (
+          <span
+            key={s.id}
+            className={`${s.cls} hero-twinkle`}
+            style={{
+              position: 'absolute',
+              left: `${s.x}%`,
+              top: `${s.y}%`,
+              width: s.size,
+              height: s.size,
+              borderRadius: '999px',
               animationDelay: `${s.delay}s`,
             }}
           />
         ))}
       </div>
 
-      {/* 鼠标跟随光晕（保留） */}
+      {/* Dust lanes — opaque organic bands obscuring the bright nebula behind */}
+      <div className="absolute inset-0 dust-lanes" />
+
+      {/* Lens flare diffraction spikes — Hubble/JWST signature on bright stars */}
+      {FLARE_STARS.map((f) => (
+        <div
+          key={f.id}
+          className={`lens-flare ${f.color}`}
+          style={{
+            left: `${f.x}%`,
+            top: `${f.y}%`,
+            width: f.size,
+            height: f.size,
+            animationDelay: `${f.delay}s`,
+          }}
+        />
+      ))}
+
+      {/* Mouse-follow halo */}
       <div ref={haloRef} className="absolute inset-0 cosmic-cursor-halo" />
     </div>
   )

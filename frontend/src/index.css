@@ -7,54 +7,123 @@ body { font-family: 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif; }
 
 html.widget, body.widget, .widget #root { background: transparent !important; }
 
-/* === Cosmic theme tokens (pure-black deep space) === */
+/* === Cosmic theme tokens (NASA deep-field / JWST starscape) === */
 :root {
-  --cosmic-bg-1: #000000;     /* pure black */
-  --cosmic-bg-2: #050309;     /* near-black with hint of indigo */
-  --cosmic-bg-3: #0a0814;     /* very dim violet whisper */
-  --nebula-purple: rgba(99, 70, 180, 0.06);
-  --nebula-blue: rgba(40, 90, 180, 0.05);
-  --nebula-pink: rgba(180, 70, 130, 0.025);
-  --star-warm: #fde68a;
-  --star-cool: #e0e7ff;
+  --cosmic-bg-1: #02030a;     /* deep void, near-black with hint of midnight blue */
+  --cosmic-bg-2: #050714;     /* dim navy */
+  --cosmic-bg-3: #08071a;     /* very dim violet-blue whisper */
+  /* JWST-inspired emission line colors */
+  --neb-h-alpha: rgba(228, 92, 144, 0.13);    /* hydrogen-alpha pink */
+  --neb-oiii: rgba(80, 198, 220, 0.10);       /* oxygen III cyan */
+  --neb-sulfur: rgba(248, 160, 78, 0.08);     /* sulfur II warm orange */
+  --neb-deep-purple: rgba(112, 78, 200, 0.07);/* dust-scattered purple */
+  --core-warmth: rgba(255, 196, 132, 0.07);   /* distant galactic core */
+  --dust-lane: rgba(2, 2, 8, 0.55);           /* opaque dust obscuring background */
   --star-white: #ffffff;
+  --star-blue: rgba(170, 215, 255, 0.95);
+  --star-red: rgba(255, 175, 130, 0.95);
+  --star-yellow: rgba(255, 232, 170, 0.95);
   --celestial-red: 251, 113, 133;     /* high priority - red giant */
   --celestial-amber: 251, 191, 36;    /* medium - main sequence */
   --celestial-blue: 96, 165, 250;     /* low - blue dwarf */
   --celestial-dim: 148, 163, 184;     /* none - dim star */
 }
 
-/* Layered cosmic background */
+/* Layered cosmic background: deep void + galactic core warmth + colored nebulae */
 .cosmic-bg {
   background:
-    radial-gradient(ellipse at 18% 22%, var(--nebula-purple) 0%, transparent 50%),
-    radial-gradient(ellipse at 82% 28%, var(--nebula-blue) 0%, transparent 45%),
-    radial-gradient(ellipse at 50% 92%, var(--nebula-pink) 0%, transparent 55%),
-    radial-gradient(ellipse at 50% 50%, var(--cosmic-bg-3) 0%, var(--cosmic-bg-2) 35%, var(--cosmic-bg-1) 75%);
+    /* H-alpha cloud, upper left */
+    radial-gradient(ellipse 55% 40% at 22% 28%, var(--neb-h-alpha) 0%, transparent 60%),
+    /* O III cyan cloud, mid-right */
+    radial-gradient(ellipse 50% 38% at 78% 42%, var(--neb-oiii) 0%, transparent 65%),
+    /* Sulfur warm cloud, lower-mid */
+    radial-gradient(ellipse 45% 35% at 38% 78%, var(--neb-sulfur) 0%, transparent 65%),
+    /* Deep purple haze, upper right */
+    radial-gradient(ellipse 60% 45% at 72% 18%, var(--neb-deep-purple) 0%, transparent 70%),
+    /* Galactic core warmth, off-screen lower-right */
+    radial-gradient(circle 65% at 88% 108%, var(--core-warmth) 0%, transparent 55%),
+    /* Deep void gradient base */
+    radial-gradient(ellipse at 50% 50%, var(--cosmic-bg-3) 0%, var(--cosmic-bg-2) 38%, var(--cosmic-bg-1) 80%);
   background-attachment: local;
 }
 
-/* Drifting nebula clouds — much subtler now (nearly imperceptible) */
+/* Dust lanes — opaque dark organic patches obscuring the bright nebula behind */
+.dust-lanes {
+  background:
+    radial-gradient(ellipse 38% 12% at 30% 36%, var(--dust-lane) 0%, transparent 70%),
+    radial-gradient(ellipse 28% 9% at 62% 58%, var(--dust-lane) 0%, transparent 70%),
+    radial-gradient(ellipse 22% 14% at 48% 22%, rgba(2,2,8,0.45) 0%, transparent 75%),
+    radial-gradient(ellipse 30% 10% at 18% 70%, rgba(2,2,8,0.4) 0%, transparent 75%);
+  filter: blur(6px);
+  opacity: 0.85;
+}
+
+/* Drifting nebula veils — colored gas with very slow parallax */
 .nebula-drift-a {
-  background: radial-gradient(ellipse 70% 50% at 30% 40%, rgba(99, 70, 180, 0.08), transparent 70%);
-  animation: nebula-drift-a 60s ease-in-out infinite alternate;
+  background: radial-gradient(ellipse 65% 48% at 32% 38%, rgba(228, 92, 144, 0.10), transparent 70%);
+  animation: nebula-drift-a 80s ease-in-out infinite alternate;
+  mix-blend-mode: screen;
 }
 .nebula-drift-b {
-  background: radial-gradient(ellipse 60% 45% at 70% 60%, rgba(40, 90, 180, 0.06), transparent 70%);
-  animation: nebula-drift-b 75s ease-in-out infinite alternate;
+  background: radial-gradient(ellipse 55% 42% at 70% 62%, rgba(80, 198, 220, 0.09), transparent 70%);
+  animation: nebula-drift-b 95s ease-in-out infinite alternate;
+  mix-blend-mode: screen;
 }
 @keyframes nebula-drift-a {
   0%   { transform: translate(0, 0) scale(1); opacity: 0.7; }
-  100% { transform: translate(8%, -4%) scale(1.08); opacity: 0.95; }
+  100% { transform: translate(6%, -3%) scale(1.06); opacity: 1; }
 }
 @keyframes nebula-drift-b {
-  0%   { transform: translate(0, 0) scale(1); opacity: 0.6; }
-  100% { transform: translate(-6%, 5%) scale(1.1); opacity: 0.9; }
+  0%   { transform: translate(0, 0) scale(1); opacity: 0.65; }
+  100% { transform: translate(-5%, 4%) scale(1.08); opacity: 0.95; }
 }
 
-/* Star twinkle: only the 6 hero stars animate now */
-@keyframes hero-twinkle { 0%,100% { opacity:.95; } 50% { opacity:.35; } }
+/* Star color variants (chromatic glow per stellar class) */
+.star-white     { background: #ffffff; box-shadow: 0 0 4px rgba(255,255,255,0.9), 0 0 9px rgba(220,230,255,0.5); }
+.star-blue      { background: #ffffff; box-shadow: 0 0 4px rgba(170,215,255,0.95), 0 0 11px rgba(120,180,255,0.65); }
+.star-red       { background: #fff3d8; box-shadow: 0 0 4px rgba(255,175,130,0.95), 0 0 11px rgba(255,130,90,0.55); }
+.star-yellow    { background: #ffffff; box-shadow: 0 0 4px rgba(255,232,170,0.95), 0 0 10px rgba(255,200,120,0.5); }
+
+/* Hero star slow twinkle */
+@keyframes hero-twinkle { 0%,100% { opacity:.95; } 50% { opacity:.45; } }
 .hero-twinkle { animation: hero-twinkle 6s ease-in-out infinite; }
+
+/* Lens flare cross — Hubble/JWST diffraction spike on bright stars */
+.lens-flare {
+  position: absolute;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  width: 80px;
+  height: 80px;
+  opacity: 0.7;
+  animation: flare-pulse 8s ease-in-out infinite;
+}
+.lens-flare::before,
+.lens-flare::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.85) 48%, rgba(255,255,255,0.95) 50%, rgba(255,255,255,0.85) 52%, transparent 100%);
+  filter: blur(0.4px);
+}
+.lens-flare::before {
+  width: 100%;
+  height: 1px;
+  transform: translate(-50%, -50%);
+}
+.lens-flare::after {
+  width: 1px;
+  height: 100%;
+  transform: translate(-50%, -50%);
+  background: linear-gradient(180deg, transparent 0%, rgba(255,255,255,0.85) 48%, rgba(255,255,255,0.95) 50%, rgba(255,255,255,0.85) 52%, transparent 100%);
+}
+.lens-flare-blue::before, .lens-flare-blue::after { background-image: linear-gradient(90deg, transparent 0%, rgba(170,215,255,0.85) 48%, #ffffff 50%, rgba(170,215,255,0.85) 52%, transparent 100%); }
+.lens-flare-red::before, .lens-flare-red::after { background-image: linear-gradient(90deg, transparent 0%, rgba(255,175,130,0.85) 48%, #fff3d8 50%, rgba(255,175,130,0.85) 52%, transparent 100%); }
+@keyframes flare-pulse {
+  0%,100% { opacity: 0.55; transform: translate(-50%, -50%) scale(0.92); }
+  50%     { opacity: 0.85; transform: translate(-50%, -50%) scale(1.06); }
+}
 
 /* === Time Rift indicator === */
 @keyframes rift-pulse {
@@ -153,7 +222,8 @@ html.widget, body.widget, .widget #root { background: transparent !important; }
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   .hero-twinkle,
-  .nebula-drift-a, .nebula-drift-b { animation: none !important; }
+  .nebula-drift-a, .nebula-drift-b,
+  .lens-flare { animation: none !important; }
   .cosmic-cursor-halo { background: none !important; }
 }
 
