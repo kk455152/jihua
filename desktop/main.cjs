@@ -71,6 +71,13 @@ function createWidget() {
     return { action: 'deny' }
   })
 
+  widgetWin.on('enter-full-screen', () => {
+    widgetWin.webContents.send('widget:fullScreenChanged', true)
+  })
+  widgetWin.on('leave-full-screen', () => {
+    widgetWin.webContents.send('widget:fullScreenChanged', false)
+  })
+
   widgetWin.on('closed', () => {
     widgetWin = null
   })
@@ -103,6 +110,17 @@ ipcMain.handle('widget:close', () => {
 
 ipcMain.handle('widget:openMain', () => {
   shell.openExternal(MAIN_URL)
+})
+
+ipcMain.handle('widget:toggleFullScreen', () => {
+  if (!widgetWin) return false
+  const next = !widgetWin.isFullScreen()
+  widgetWin.setFullScreen(next)
+  return next
+})
+
+ipcMain.handle('widget:isFullScreen', () => {
+  return widgetWin ? widgetWin.isFullScreen() : false
 })
 
 const gotLock = app.requestSingleInstanceLock()

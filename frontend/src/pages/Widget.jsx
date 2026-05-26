@@ -5,7 +5,7 @@ import { format, isToday, isPast } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 import {
   Clock, BookOpen, Wrench, CheckCircle2, X, Pin, Settings as SettingsIcon, Trash2, Check,
-  ListTodo, CalendarDays,
+  ListTodo, CalendarDays, Maximize2, Minimize2,
 } from 'lucide-react'
 import clsx from 'clsx'
 import CalendarView from './CalendarView.jsx'
@@ -88,6 +88,33 @@ export default function Widget() {
     return v === null ? true : v === '1'
   })
   const [view, setView] = useState(() => localStorage.getItem(VIEW_KEY) || 'list')
+  const [isFullScreen, setIsFullScreen] = useState(false)
+
+  useEffect(() => {
+    if (window.jihua?.isFullScreen) {
+      window.jihua.isFullScreen().then((v) => setIsFullScreen(!!v))
+    }
+    const off = window.jihua?.onFullScreenChange?.((v) => setIsFullScreen(!!v))
+    const onWebFs = () => setIsFullScreen(!!document.fullscreenElement)
+    document.addEventListener('fullscreenchange', onWebFs)
+    return () => {
+      if (typeof off === 'function') off()
+      document.removeEventListener('fullscreenchange', onWebFs)
+    }
+  }, [])
+
+  const toggleFullScreen = async () => {
+    if (window.jihua?.toggleFullScreen) {
+      const next = await window.jihua.toggleFullScreen()
+      setIsFullScreen(!!next)
+      return
+    }
+    if (document.fullscreenElement) {
+      await document.exitFullscreen()
+    } else {
+      await document.documentElement.requestFullscreen()
+    }
+  }
 
   useEffect(() => {
     localStorage.setItem(VIEW_KEY, view)
@@ -238,6 +265,16 @@ export default function Widget() {
             title={pinned ? '取消置顶' : '置顶'}
           >
             <Pin className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={toggleFullScreen}
+            className={clsx(
+              'p-1.5 rounded-md text-slate-400 hover:text-white hover:bg-white/10 transition',
+              isFullScreen && 'text-sky-300'
+            )}
+            title={isFullScreen ? '退出全屏' : '全屏'}
+          >
+            {isFullScreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
           </button>
           <button
             onClick={() => setShowSettings(!showSettings)}
